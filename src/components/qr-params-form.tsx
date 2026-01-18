@@ -24,7 +24,7 @@ export function QRParamsForm({ onDataChange }: QRParamsFormProps) {
     })
 
     // Propagate basic data immediately
-    const updateValue = (key: keyof QRData, value: any) => {
+    const updateValue = (key: keyof QRData, value: string | boolean) => {
         setValues(prev => ({ ...prev, [key]: value }))
     }
 

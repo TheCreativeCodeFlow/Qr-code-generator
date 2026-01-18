@@ -1,25 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { QRParamsForm } from "@/components/qr-params-form"
-import { QRPreview } from "@/components/qr-preview"
-import { Button } from "@/components/ui/button"
-import { Download, Share2 } from "lucide-react"
+import { QRPreview } from "@/components/qr/QRPreview"
+import { QRStyleControls } from "@/components/qr/QRStyleControls"
+import { QRScanner } from "@/components/decoder/QRScanner"
 import { ModeToggle } from "@/components/mode-toggle"
+import { DEFAULT_CONFIG, QRConfig } from "@/lib/qr/config"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function Home() {
-  const [data, setData] = useState("https://example.com")
+  const [activeTab, setActiveTab] = useState("generate")
+  const [config, setConfig] = useState<QRConfig>(DEFAULT_CONFIG)
 
-  const handleDownload = () => {
-    const canvas = document.querySelector('canvas')
-    if (canvas) {
-      const url = canvas.toDataURL("image/png")
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'qrcode.png'
-      a.click()
-    }
-  }
+  const handleDataChange = useCallback((data: string) => {
+    setConfig((prev) => ({ ...prev, data }))
+  }, [])
 
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -39,35 +35,46 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="container mx-auto py-8 px-4 md:px-8 flex flex-col lg:flex-row gap-8">
-        {/* Left: Configuration */}
-        <div className="flex-1 space-y-6">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Generate QR Code</h1>
-            <p className="text-muted-foreground">Select a type and enter your content to create a QR code immediately.</p>
-          </div>
-          <QRParamsForm onDataChange={setData} />
-        </div>
+      <div className="container mx-auto py-8 px-4 md:px-8">
 
-        {/* Right: Preview (Sticky) */}
-        <div className="lg:w-[400px]">
-          <div className="sticky top-24 space-y-4">
-            <QRPreview data={data} className="w-full aspect-square shadow-xl border-slate-200 dark:border-slate-800" />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex flex-col lg:flex-row gap-8">
 
-            <div className="grid grid-cols-2 gap-4">
-              <Button className="w-full" onClick={handleDownload} variant="default">
-                <Download className="mr-2 h-4 w-4" /> Download PNG
-              </Button>
-              <Button className="w-full" variant="outline">
-                <Share2 className="mr-2 h-4 w-4" /> Share
-              </Button>
+            {/* Left Column: Controls */}
+            <div className="flex-1 space-y-6">
+              <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-bold tracking-tight">QR Generator</h1>
+              </div>
+
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="generate">Generate</TabsTrigger>
+                <TabsTrigger value="scan">Scan & Decode</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="generate" className="space-y-6 mt-0">
+                <QRParamsForm onDataChange={handleDataChange} />
+                <QRStyleControls config={config} setConfig={setConfig} />
+              </TabsContent>
+
+              <TabsContent value="scan">
+                <QRScanner />
+              </TabsContent>
             </div>
 
-            <div className="text-xs text-center text-muted-foreground">
-              High quality render • Error correction M
+            {/* Right Column: Preview */}
+            <div className="lg:w-[400px]">
+              <div className="sticky top-24 space-y-4">
+                <QRPreview config={config} />
+
+                <div className="text-xs text-center text-muted-foreground">
+                  High quality render • Client-side only
+                </div>
+              </div>
             </div>
+
           </div>
-        </div>
+        </Tabs>
+
       </div>
     </main>
   )
