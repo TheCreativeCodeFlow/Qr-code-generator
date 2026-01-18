@@ -24,7 +24,7 @@ Start the local development server:
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to see the app.
+Visit [https://qr-code-generator-sigma-eight.vercel.app/](https://qr-code-generator-sigma-eight.vercel.app/) to see the app.
 
 ## 🛠 Features
 
