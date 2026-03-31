@@ -1,5 +1,3 @@
-import { Options } from "qr-code-styling";
-
 export type QRStyleType = "square" | "dots" | "rounded" | "classy" | "classy-rounded" | "extra-rounded";
 export type QREyeFrameType = "square" | "circle" | "rounded" | "extra-rounded" | "classy" | "classy-rounded";
 export type QREyeBallType = "square" | "circle" | "rounded" | "extra-rounded" | "classy" | "classy-rounded";

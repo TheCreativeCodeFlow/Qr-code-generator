@@ -4,7 +4,6 @@ import { HexColorPicker } from "react-colorful";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 interface ColorPickerProps {
     color: string;
@@ -21,7 +20,7 @@ export function ColorPicker({ color, onChange, className }: ColorPickerProps) {
                     className={cn("w-full justify-start text-left font-normal", className)}
                 >
                     <div
-                        className="w-4 h-4 rounded mr-2 border border-slate-200"
+                        className="w-4 h-4 rounded mr-2 border border-border"
                         style={{ backgroundColor: color }}
                     />
                     {color}

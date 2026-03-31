@@ -1,190 +1,277 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { useEffect, useMemo, useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { QRData, QRType } from '@/types/qr'
-import { formatUrlData, formatWifiData, formatVCardData, formatEmailData, formatSMSData } from '@/lib/qr-utils'
+import { QRData } from '@/types/qr'
+import { formatEmailData, formatSMSData, formatUrlData, formatVCardData, formatWifiData } from '@/lib/qr-utils'
+import { CONTENT_TABS, SegmentedTabSelector, SectionHint, type ContentTabValue } from '@/components/qr/qr-ui'
+import { Link2, Keyboard, QrCode, Type } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import type { ReactNode } from 'react'
 
 interface QRParamsFormProps {
-    onDataChange: (data: string) => void
+  onDataChange: (data: string) => void
+}
+
+type FieldShellProps = {
+  label: string
+  hint?: string
+  children: ReactNode
+}
+
+function FieldShell({ label, hint, children }: FieldShellProps) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-end justify-between gap-3">
+        <Label className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{label}</Label>
+        {hint ? <span className="text-[11px] text-muted-foreground">{hint}</span> : null}
+      </div>
+      {children}
+    </div>
+  )
 }
 
 export function QRParamsForm({ onDataChange }: QRParamsFormProps) {
-    const [type, setType] = useState<QRType>('URL')
-    const [values, setValues] = useState<QRData>({
-        type: 'URL',
-        url: 'https://',
-        encryption: 'WPA'
-    })
+  const [type, setType] = useState<ContentTabValue>('URL')
+  const [values, setValues] = useState<QRData>({
+    type: 'URL',
+    url: 'https://',
+    encryption: 'WPA',
+    hidden: false,
+  })
 
-    // Propagate basic data immediately
-    const updateValue = (key: keyof QRData, value: string | boolean) => {
-        setValues(prev => ({ ...prev, [key]: value }))
+  const updateValue = <K extends keyof QRData>(key: K, value: QRData[K]) => {
+    setValues((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const generatedData = useMemo(() => {
+    try {
+      switch (type) {
+        case 'URL':
+          return formatUrlData(values.url || '')
+        case 'TEXT':
+          return values.text || ''
+        case 'WIFI':
+          return formatWifiData({
+            ssid: values.ssid || '',
+            password: values.password,
+            encryption: values.encryption,
+            hidden: values.hidden,
+          })
+        case 'VCARD':
+          return formatVCardData({
+            firstName: values.firstName || '',
+            lastName: values.lastName || '',
+            phone: values.phone,
+            email: values.email,
+            org: values.org,
+            url: values.website,
+          })
+        case 'EMAIL':
+          return formatEmailData({ to: values.to || '', subject: values.subject, body: values.body })
+        case 'SMS':
+          return formatSMSData({ phone: values.phone || '', message: values.message })
+        default:
+          return ''
+      }
+    } catch {
+      return ''
     }
+  }, [type, values])
 
-    useEffect(() => {
-        const generate = () => {
-            try {
-                switch (type) {
-                    case 'URL':
-                        return formatUrlData(values.url || '')
-                    case 'TEXT':
-                        return values.text || ''
-                    case 'WIFI':
-                        return formatWifiData({ ssid: values.ssid || '', password: values.password, encryption: values.encryption, hidden: values.hidden })
-                    case 'VCARD':
-                        return formatVCardData({
-                            firstName: values.firstName || '',
-                            lastName: values.lastName || '',
-                            phone: values.phone,
-                            email: values.email,
-                            org: values.org,
-                            url: values.website
-                        })
-                    case 'EMAIL':
-                        return formatEmailData({ to: values.to || '', subject: values.subject, body: values.body })
-                    case 'SMS':
-                        return formatSMSData({ phone: values.phone || '', message: values.message })
-                    default:
-                        return ''
-                }
-            } catch (e) {
-                return ''
-            }
-        }
-        const data = generate()
-        if (data) onDataChange(data)
-    }, [type, values, onDataChange])
+  useEffect(() => {
+    onDataChange(generatedData)
+  }, [generatedData, onDataChange])
 
-    return (
-        <Card className="w-full">
-            <CardHeader>
-                <CardTitle>QR Content</CardTitle>
-                <CardDescription>Choose content type and customize</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Tabs value={type} onValueChange={(v) => setType(v as QRType)} className="w-full">
-                    <TabsList className="flex flex-wrap h-auto gap-2 bg-transparent justify-start mb-6">
-                        {['URL', 'TEXT', 'WIFI', 'VCARD', 'EMAIL', 'SMS'].map(t => (
-                            <TabsTrigger
-                                key={t}
-                                value={t}
-                                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border px-4 py-2"
-                            >
-                                {t}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
+  const contentHint = CONTENT_TABS.find((tab) => tab.value === type)?.description ?? 'Choose a content type'
 
-                    <TabsContent value="URL" className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Website URL</Label>
-                            <Input
-                                placeholder="https://example.com"
-                                value={values.url || ''}
-                                onChange={e => updateValue('url', e.target.value)}
-                            />
-                        </div>
-                    </TabsContent>
+  return (
+    <div className="space-y-5">
+      <Card className="overflow-hidden border-border/70 bg-background/70 text-foreground shadow-[0_28px_90px_-52px_rgba(15,23,42,0.45)] backdrop-blur">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-background/80 to-transparent pb-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-cyan-300">
+                <QrCode className="size-3.5" />
+                Content Builder
+              </div>
+              <div>
+                <CardTitle className="text-xl">Choose what the QR should encode</CardTitle>
+                <CardDescription className="mt-1 text-sm text-muted-foreground">
+                  Structured content forms with immediate preview sync.
+                </CardDescription>
+              </div>
+            </div>
+            <div className="hidden rounded-2xl border border-border/70 bg-background/70 p-3 text-right md:block">
+              <div className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">Mode</div>
+              <div className="mt-1 text-sm font-medium text-foreground">{type}</div>
+            </div>
+          </div>
+        </CardHeader>
 
-                    <TabsContent value="TEXT" className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Plain Text</Label>
-                            <Textarea
-                                placeholder="Enter your text here..."
-                                value={values.text || ''}
-                                onChange={e => updateValue('text', e.target.value)}
-                            />
-                        </div>
-                    </TabsContent>
+        <CardContent className="space-y-5 pt-5">
+          <SegmentedTabSelector value={type} onValueChange={(next) => setType(next)} />
 
-                    <TabsContent value="WIFI" className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Network Name (SSID)</Label>
-                            <Input value={values.ssid || ''} onChange={e => updateValue('ssid', e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Password</Label>
-                            <Input type="password" value={values.password || ''} onChange={e => updateValue('password', e.target.value)} />
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <div className="space-y-2 flex-1">
-                                <Label>Encryption</Label>
-                                <Select value={values.encryption} onValueChange={v => updateValue('encryption', v)}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="WPA">WPA/WPA2</SelectItem>
-                                        <SelectItem value="WEP">WEP</SelectItem>
-                                        <SelectItem value="nopass">None</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex items-center space-x-2 pt-8">
-                                <Switch checked={values.hidden} onCheckedChange={c => updateValue('hidden', c)} />
-                                <Label>Hidden Network</Label>
-                            </div>
-                        </div>
-                    </TabsContent>
+          <div
+            role="tabpanel"
+            id={`qr-content-panel-${type}`}
+            aria-labelledby={`qr-content-tab-${type}`}
+            className="rounded-2xl border border-border/70 bg-background/60 p-4 shadow-inner"
+          >
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-sm font-medium text-foreground">{contentHint}</div>
+                <div className="mt-1 text-xs text-muted-foreground">Keyboard friendly tabs, smooth state changes, no feature loss.</div>
+              </div>
+              <SectionHint>
+                Current payload updates instantly as fields change.
+              </SectionHint>
+            </div>
 
-                    <TabsContent value="VCARD" className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>First Name</Label>
-                                <Input value={values.firstName || ''} onChange={e => updateValue('firstName', e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Last Name</Label>
-                                <Input value={values.lastName || ''} onChange={e => updateValue('lastName', e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Phone</Label>
-                            <Input type="tel" value={values.phone || ''} onChange={e => updateValue('phone', e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Email</Label>
-                            <Input type="email" value={values.email || ''} onChange={e => updateValue('email', e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Website</Label>
-                            <Input value={values.website || ''} onChange={e => updateValue('website', e.target.value)} />
-                        </div>
-                    </TabsContent>
+            <div className="space-y-4">
+              {type === 'URL' && (
+                <FieldShell label="Website URL" hint="Starts with https:// if missing">
+                  <Input
+                    type="url"
+                    inputMode="url"
+                    autoComplete="url"
+                    placeholder="https://example.com"
+                    value={values.url || ''}
+                    onChange={(e) => updateValue('url', e.target.value)}
+                  />
+                </FieldShell>
+              )}
 
-                    <TabsContent value="EMAIL" className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Email To</Label>
-                            <Input value={values.to || ''} onChange={e => updateValue('to', e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Subject</Label>
-                            <Input value={values.subject || ''} onChange={e => updateValue('subject', e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Message</Label>
-                            <Textarea value={values.body || ''} onChange={e => updateValue('body', e.target.value)} />
-                        </div>
-                    </TabsContent>
+              {type === 'TEXT' && (
+                <FieldShell label="Plain text" hint="Any short message or note">
+                  <Textarea
+                    placeholder="Enter your text here..."
+                    value={values.text || ''}
+                    onChange={(e) => updateValue('text', e.target.value)}
+                    className="min-h-32"
+                  />
+                </FieldShell>
+              )}
 
-                    <TabsContent value="SMS" className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Phone Number</Label>
-                            <Input type="tel" value={values.phone || ''} onChange={e => updateValue('phone', e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Message</Label>
-                            <Textarea value={values.message || ''} onChange={e => updateValue('message', e.target.value)} />
-                        </div>
-                    </TabsContent>
+              {type === 'WIFI' && (
+                <div className="grid gap-4">
+                  <FieldShell label="Network name" hint="SSID">
+                    <Input
+                      placeholder="MyNetwork"
+                      value={values.ssid || ''}
+                      onChange={(e) => updateValue('ssid', e.target.value)}
+                    />
+                  </FieldShell>
 
-                </Tabs>
-            </CardContent>
-        </Card>
-    )
+                  <FieldShell label="Password" hint="Hidden by default in the field">
+                    <Input
+                      type="password"
+                      autoComplete="current-password"
+                      value={values.password || ''}
+                      onChange={(e) => updateValue('password', e.target.value)}
+                    />
+                  </FieldShell>
+
+                  <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+                    <FieldShell label="Encryption">
+                      <Select value={values.encryption} onValueChange={(v) => updateValue('encryption', v as QRData['encryption'])}>
+                        <SelectTrigger className="h-11 w-full rounded-xl border-border/70 bg-background/70 text-sm">
+                          <SelectValue placeholder="Select encryption" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="WPA">WPA / WPA2</SelectItem>
+                          <SelectItem value="WEP">WEP</SelectItem>
+                          <SelectItem value="nopass">None</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FieldShell>
+
+                    <div className="flex items-end justify-between rounded-xl border border-border/70 bg-background/70 px-4 py-3">
+                      <div>
+                        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Hidden</div>
+                        <div className="mt-1 text-sm text-muted-foreground">Broadcast off</div>
+                      </div>
+                      <Switch checked={Boolean(values.hidden)} onCheckedChange={(checked) => updateValue('hidden', checked)} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {type === 'VCARD' && (
+                <div className="grid gap-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FieldShell label="First name">
+                      <Input value={values.firstName || ''} onChange={(e) => updateValue('firstName', e.target.value)} />
+                    </FieldShell>
+                    <FieldShell label="Last name">
+                      <Input value={values.lastName || ''} onChange={(e) => updateValue('lastName', e.target.value)} />
+                    </FieldShell>
+                  </div>
+                  <FieldShell label="Phone number">
+                    <Input type="tel" inputMode="tel" value={values.phone || ''} onChange={(e) => updateValue('phone', e.target.value)} />
+                  </FieldShell>
+                  <FieldShell label="Email address">
+                    <Input type="email" autoComplete="email" value={values.email || ''} onChange={(e) => updateValue('email', e.target.value)} />
+                  </FieldShell>
+                  <FieldShell label="Website">
+                    <Input type="url" inputMode="url" value={values.website || ''} onChange={(e) => updateValue('website', e.target.value)} />
+                  </FieldShell>
+                </div>
+              )}
+
+              {type === 'EMAIL' && (
+                <div className="grid gap-4">
+                  <FieldShell label="Recipient email">
+                    <Input type="email" autoComplete="email" value={values.to || ''} onChange={(e) => updateValue('to', e.target.value)} />
+                  </FieldShell>
+                  <FieldShell label="Subject">
+                    <Input value={values.subject || ''} onChange={(e) => updateValue('subject', e.target.value)} />
+                  </FieldShell>
+                  <FieldShell label="Message">
+                    <Textarea value={values.body || ''} onChange={(e) => updateValue('body', e.target.value)} className="min-h-28" />
+                  </FieldShell>
+                </div>
+              )}
+
+              {type === 'SMS' && (
+                <div className="grid gap-4">
+                  <FieldShell label="Phone number">
+                    <Input type="tel" inputMode="tel" value={values.phone || ''} onChange={(e) => updateValue('phone', e.target.value)} />
+                  </FieldShell>
+                  <FieldShell label="Message">
+                    <Textarea value={values.message || ''} onChange={(e) => updateValue('message', e.target.value)} className="min-h-28" />
+                  </FieldShell>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/70 bg-gradient-to-br from-background/85 to-background/55 text-foreground shadow-[0_20px_70px_-42px_rgba(15,23,42,0.38)] backdrop-blur">
+        <CardContent className="grid gap-3 !px-4 !py-4 sm:grid-cols-3">
+          {[
+            { label: 'Content types', value: '6', icon: Type },
+            { label: 'Live sync', value: 'On', icon: Link2 },
+            { label: 'Accessibility', value: 'Keyboard-first', icon: Keyboard },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/60 px-3 py-3">
+              <div className="flex size-9 items-center justify-center rounded-lg border border-border/70 bg-background/80 text-cyan-300">
+                <Icon className="size-4" />
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+                <div className={cn('text-sm font-medium text-foreground')}>{value}</div>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
